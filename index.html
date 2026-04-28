@@ -517,6 +517,7 @@
       "assets/geojson/limits_R_12_municipalities.geojson",
       "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_R_12_municipalities.geojson"
     ];
+    const LOCAL_ASSET_VERSION = "20260428-geojson";
 
     const PROVINCE_CENTROIDS = {
       "Roma": [41.8933, 12.4829],
@@ -807,8 +808,15 @@
       });
     }
 
+    function versionedAssetUrl(url) {
+      if (!url.startsWith("assets/")) return url;
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}v=${encodeURIComponent(LOCAL_ASSET_VERSION)}`;
+    }
+
     async function fetchJson(url) {
-      const res = await fetch(url, { cache: "force-cache" });
+      const requestUrl = versionedAssetUrl(url);
+      const res = await fetch(requestUrl, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status} durante il caricamento di ${url}`);
       return res.json();
     }
@@ -866,7 +874,9 @@
       if (!lazioGeoJson) {
         const result = await fetchJsonFromSources(LAZIO_PROVINCES_GEOJSON);
         const geo = result.data;
-        geoJsonSourceLabel = result.url.startsWith("assets/") ? "locali" : "fallback Openpolis";
+        geoJsonSourceLabel = result.url.startsWith("assets/geojson/")
+          ? "locali"
+          : "fallback Openpolis";
         lazioGeoJson = {
           type: "FeatureCollection",
           features: geo.features.filter(f => (f.properties?.reg_name || "").toLowerCase() === "lazio")
