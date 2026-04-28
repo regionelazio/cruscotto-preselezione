@@ -1155,7 +1155,9 @@
         zoomControl: true,
         attributionControl: true,
         scrollWheelZoom: "center",
-        wheelDebounceTime: 45
+        wheelDebounceTime: 45,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5
       }).setView([41.95, 12.6], 8);
 
       baseTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
@@ -1218,7 +1220,7 @@
 
       markersLayer = L.layerGroup().addTo(map);
 
-      map.setView([41.9, 12.65], 10, { animate: false });
+      map.setView([41.9, 12.65], 9.5, { animate: false });
     }
 
     function renderMapError() {
