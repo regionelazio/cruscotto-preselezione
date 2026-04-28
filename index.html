@@ -1220,7 +1220,14 @@
 
       markersLayer = L.layerGroup().addTo(map);
 
-      map.setView([41.75, 12.55], 8.9, { animate: false });
+      const bounds = provinceLayer.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, {
+          animate: false,
+          paddingTopLeft: [12, 12],
+          paddingBottomRight: [12, 12]
+        });
+      }
     }
 
     function renderMapError() {
