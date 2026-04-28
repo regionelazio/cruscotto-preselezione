@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.plot.ly https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://unpkg.com; connect-src 'self' https://docs.google.com https://raw.githubusercontent.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.plot.ly https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://unpkg.com; connect-src 'self' https://docs.google.com https://*.googleusercontent.com https://raw.githubusercontent.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f62fe'/%3E%3Cpath d='M8 20h16v4H8zm0-6h12v4H8zm0-6h16v4H8z' fill='white'/%3E%3C/svg%3E" />
   <title>Dashboard preselezioni attive - Regione Lazio</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preconnect" href="https://cdn.plot.ly" />
@@ -546,6 +547,7 @@
     let filteredRows = [];
     let map, italyLayer, provinceLayer, markersLayer;
     let mapErrorMessage = "";
+    let geoJsonSourceLabel = "";
     let lazioGeoJson = null;
     let italyRegionsGeoJson = null;
     let lazioComuniGeoJson = null;
@@ -816,7 +818,8 @@
       const errors = [];
       for (const url of sources) {
         try {
-          return await fetchJson(url);
+          const data = await fetchJson(url);
+          return { data, url };
         } catch (err) {
           errors.push(err.message || String(err));
         }
@@ -861,17 +864,21 @@
 
     async function loadGeoJson() {
       if (!lazioGeoJson) {
-        const geo = await fetchJsonFromSources(LAZIO_PROVINCES_GEOJSON);
+        const result = await fetchJsonFromSources(LAZIO_PROVINCES_GEOJSON);
+        const geo = result.data;
+        geoJsonSourceLabel = result.url.startsWith("assets/") ? "locali" : "fallback Openpolis";
         lazioGeoJson = {
           type: "FeatureCollection",
           features: geo.features.filter(f => (f.properties?.reg_name || "").toLowerCase() === "lazio")
         };
       }
       if (!italyRegionsGeoJson) {
-        italyRegionsGeoJson = await fetchJsonFromSources(ITALY_REGIONS_GEOJSON);
+        const result = await fetchJsonFromSources(ITALY_REGIONS_GEOJSON);
+        italyRegionsGeoJson = result.data;
       }
       if (!lazioComuniGeoJson) {
-        const geo = await fetchJsonFromSources(LAZIO_COMUNI_GEOJSON);
+        const result = await fetchJsonFromSources(LAZIO_COMUNI_GEOJSON);
+        const geo = result.data;
         lazioComuniGeoJson = geo;
         buildComuneCoordsIndex(lazioComuniGeoJson.features);
       }
@@ -1161,7 +1168,7 @@
       const legend = L.control({position: 'bottomright'});
       legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = '<strong>Lettura della mappa</strong><br>Sfondo: regioni italiane<br>Primo piano: province del Lazio<br>Cerchi: comuni sede lavoro';
+        div.innerHTML = `<strong>Lettura della mappa</strong><br>Sfondo: regioni italiane<br>Primo piano: province del Lazio<br>Cerchi: comuni sede lavoro<br>Geodati: ${escapeHtml(geoJsonSourceLabel || "non rilevati")}`;
         return div;
       };
       legend.addTo(map);
