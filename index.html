@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.plot.ly https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://unpkg.com; connect-src 'self' https://docs.google.com https://*.googleusercontent.com https://raw.githubusercontent.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.plot.ly https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://unpkg.com https://*.basemaps.cartocdn.com; connect-src 'self' https://docs.google.com https://*.googleusercontent.com https://raw.githubusercontent.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f62fe'/%3E%3Cpath d='M8 20h16v4H8zm0-6h12v4H8zm0-6h16v4H8z' fill='white'/%3E%3C/svg%3E" />
   <title>Dashboard preselezioni attive - Regione Lazio</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="preconnect" href="https://cdn.plot.ly" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
   <style>
     :root {
@@ -102,7 +103,7 @@
     .kpi.is-collapsed { min-height:64px; }
     .kpi.is-collapsed .value,
     .kpi.is-collapsed .sub { display:none; }
-    #map { height: 520px; border-radius: 16px; overflow: hidden; }
+    #map { height: 520px; border-radius: 16px; overflow: hidden; background:#dbeafe; }
     .chart { min-height: 360px; }
     table { width:100%; border-collapse: collapse; }
     th, td { padding:10px 12px; border-bottom:1px solid #edf2f7; text-align:left; vertical-align:top; font-size:13px; }
@@ -121,8 +122,32 @@
     .empty { padding:30px; text-align:center; color:var(--muted); }
     .footer-note { font-size:12px; color:var(--muted); margin-top:8px; }
     .legend {
-      padding:10px 12px; background:rgba(255,255,255,.96); border-radius:12px; border:1px solid var(--line);
-      font-size:12px; line-height:1.4;
+      padding:10px 12px; background:rgba(255,255,255,.94); border-radius:12px; border:1px solid rgba(148,163,184,.45);
+      font-size:12px; line-height:1.45; box-shadow:0 10px 24px rgba(15,23,42,.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .legend strong {
+      display:block;
+      margin-bottom:4px;
+      color:#172033;
+    }
+
+    .map-popup {
+      min-width: 190px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .map-filter-btn {
+      border:none;
+      border-radius:10px;
+      padding:8px 10px;
+      background:var(--brand);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
     }
 
     .header.sticky-header {
@@ -546,7 +571,7 @@
 
     let rawRows = [];
     let filteredRows = [];
-    let map, italyLayer, provinceLayer, markersLayer;
+    let map, baseTileLayer, italyLayer, provinceLayer, municipalityLayer, markersLayer;
     let mapErrorMessage = "";
     let geoJsonSourceLabel = "";
     let lazioGeoJson = null;
@@ -1139,30 +1164,60 @@
     async function initMap() {
       await loadGeoJson();
       if (!window.L) throw new Error("Leaflet non caricato dal CDN");
-      map = L.map('map', { zoomControl: true, attributionControl: false }).setView([41.95, 12.6], 8);
+      map = L.map('map', {
+        zoomControl: true,
+        attributionControl: true,
+        scrollWheelZoom: false
+      }).setView([41.95, 12.6], 8);
+
+      baseTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        subdomains: "abcd",
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      }).addTo(map);
 
       italyLayer = L.geoJSON(italyRegionsGeoJson, {
         style: (feature) => {
           const isLazio = (feature.properties?.reg_name || "").toLowerCase() === "lazio";
           return {
-            weight: isLazio ? 2 : 1,
-            color: isLazio ? "#1d4ed8" : "#cbd5e1",
-            fillColor: isLazio ? "#bfdbfe" : "#e5e7eb",
-            fillOpacity: isLazio ? 0.18 : 0.35
+            weight: isLazio ? 2.5 : 1,
+            color: isLazio ? "#0f62fe" : "#94a3b8",
+            fillColor: isLazio ? "#dbeafe" : "#ffffff",
+            fillOpacity: isLazio ? 0.08 : 0,
+            opacity: isLazio ? 0.9 : 0.28,
+            dashArray: isLazio ? null : "3 4"
           };
         }
       }).addTo(map);
 
+      municipalityLayer = L.geoJSON(lazioComuniGeoJson, {
+        interactive: false,
+        style: () => ({
+          weight: 0.55,
+          color: "#2563eb",
+          opacity: 0.24,
+          fillOpacity: 0
+        })
+      }).addTo(map);
+
       provinceLayer = L.geoJSON(lazioGeoJson, {
         style: () => ({
-          weight: 1.5,
-          color: "#2563eb",
-          fillColor: "#bfdbfe",
-          fillOpacity: 0.55
+          weight: 1.8,
+          color: "#1d4ed8",
+          fillColor: "#93c5fd",
+          fillOpacity: 0.32,
+          opacity: 0.95
         }),
         onEachFeature: (feature, layer) => {
+          const provinceName = feature.properties?.prov_name;
+          if (provinceName) {
+            layer.bindTooltip(provinceName, {
+              sticky: true,
+              direction: "center",
+              className: "province-tooltip"
+            });
+          }
           layer.on('click', () => {
-            const provinceName = feature.properties?.prov_name;
             if (provinceName) {
               document.getElementById("provinciaFilter").value = provinceName;
               filters.provincia = provinceName;
@@ -1175,10 +1230,15 @@
 
       markersLayer = L.layerGroup().addTo(map);
 
+      const bounds = provinceLayer.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.18), { animate: false });
+      }
+
       const legend = L.control({position: 'bottomright'});
       legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = `<strong>Lettura della mappa</strong><br>Sfondo: regioni italiane<br>Primo piano: province del Lazio<br>Cerchi: comuni sede lavoro<br>Geodati: ${escapeHtml(geoJsonSourceLabel || "non rilevati")}`;
+        div.innerHTML = `<strong>Lettura della mappa</strong>Base cartografica: CARTO<br>Confini: GeoJSON locali<br>Cerchi: comuni sede lavoro<br>Geodati: ${escapeHtml(geoJsonSourceLabel || "non rilevati")}`;
         return div;
       };
       legend.addTo(map);
@@ -1191,10 +1251,10 @@
     }
 
     function colorScale(value, max) {
-      if (!max) return "#dbeafe";
+      if (!max) return "#e0f2fe";
       const ratio = value / max;
-      if (ratio > 0.8) return "#1d4ed8";
-      if (ratio > 0.6) return "#2563eb";
+      if (ratio > 0.8) return "#2563eb";
+      if (ratio > 0.6) return "#3b82f6";
       if (ratio > 0.4) return "#60a5fa";
       if (ratio > 0.2) return "#93c5fd";
       return "#dbeafe";
@@ -1218,9 +1278,10 @@
         const count = counts.get(name) || 0;
         layer.setStyle({
           fillColor: colorScale(count, max),
-          fillOpacity: count ? 0.78 : 0.18
+          fillOpacity: count ? 0.52 : 0.16,
+          color: count ? "#1d4ed8" : "#60a5fa",
+          weight: count ? 2 : 1.2
         });
-        layer.unbindTooltip();
       });
 
       markersLayer.clearLayers();
@@ -1240,11 +1301,12 @@
         const coords = comuneCoordsIndex.get(item.comune) || PROVINCE_CENTROIDS[item.provincia];
         if (!coords) return;
         const marker = L.circleMarker(coords, {
-          radius: 5 + Math.min(item.count, 12),
-          weight: 1.5,
-          color: "#0f172a",
-          fillColor: "#2563eb",
-          fillOpacity: 0.8
+          radius: 4 + Math.min(item.count * 1.1, 14),
+          weight: 1.8,
+          color: "#ffffff",
+          fillColor: "#0f62fe",
+          fillOpacity: 0.78,
+          opacity: 0.95
         });
         marker.bindTooltip(`<strong>${escapeHtml(item.comune)}</strong><br>Preselezioni: ${item.count}`, {
           sticky: true,
