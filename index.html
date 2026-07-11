@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<!--
+  Creatore: Gabriele Ferri
+  Contatto: gaferri@regione.lazio.it
+  Ruolo: Service Designer
+-->
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Gabriele Ferri" />
+  <meta name="contact" content="gaferri@regione.lazio.it" />
+  <meta name="role" content="Service Designer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.plot.ly https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://unpkg.com https://*.basemaps.cartocdn.com; connect-src 'self' https://docs.google.com https://*.googleusercontent.com https://raw.githubusercontent.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests" />
+  <script>
+    // Applica subito il layout compatto quando la dashboard è incorporata.
+    if (new URLSearchParams(window.location.search).get("embed") === "1") {
+      document.documentElement.classList.add("is-embedded");
+    }
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f62fe'/%3E%3Cpath d='M8 20h16v4H8zm0-6h12v4H8zm0-6h16v4H8z' fill='white'/%3E%3C/svg%3E" />
+  <title>Dashboard preselezioni attive - Regione Lazio</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://cdn.plot.ly" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+  <style>
+    :root {
+      --bg:#f5f7fb; --panel:#ffffff; --ink:#172033; --muted:#667085; --line:#dbe3ee;
+      --brand:#0f62fe; --brand-2:#6ea8fe; --ok:#0e9f6e; --warn:#d97706; --danger:#dc2626;
+      --shadow:0 10px 30px rgba(15,23,42,.08);
+      --radius:18px;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--ink); }
+    .app { max-width: 1600px; margin: 0 auto; padding: 20px; }
+    .header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:16px; align-items:flex-end; margin-bottom:18px; }
+    .title h1 { margin:0; font-size:32px; line-height:1.1; }
+    .title p { margin:8px 0 0; color:var(--muted); max-width:860px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:12px; padding:11px 14px; background:var(--brand); color:white; font-weight:600; text-decoration:none; cursor:pointer;
+      box-shadow:var(--shadow);
+    }
+    .btn.secondary { background:#e8f0ff; color:#1144b7; box-shadow:none; }
+    .embed-only { display:none; }
+    .badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; background:#eef4ff; color:#174ea6; border-radius:999px; font-size:13px; font-weight:600; }
+    .grid { display:grid; grid-template-columns:1fr; gap:18px; }
+    .panel { min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+    .filters { position:static; height:fit-content; }
+    .filters h2, .section-title { margin:0 0 12px; font-size:18px; }
+    .filters .panel-body { padding-top:10px; }
+    .filters-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px 14px; }
+    label { display:block; font-size:13px; font-weight:600; color:#344054; margin-bottom:6px; }
+    input, select {
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--ink);
+    }
+    .small { font-size:12px; color:var(--muted); }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .chip { padding:7px 10px; border-radius:999px; background:#f1f5f9; color:#334155; font-size:12px; }
+    .content { min-width:0; display:grid; gap:18px; }
+    .kpis { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:14px; }
+    .kpi { padding:18px; position:relative; }
+    .kpi .label { color:var(--muted); font-size:13px; }
+    .kpi .value { font-size:34px; font-weight:800; margin-top:8px; }
+    .kpi .sub { color:var(--muted); font-size:12px; margin-top:6px; }
+    .kpi-breakdown { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    .kpi-breakdown-item { padding:8px 10px; border-radius:12px; background:#f7f9fc; border:1px solid #e8edf5; }
+    .kpi-breakdown-item strong { display:block; font-size:22px; line-height:1; color:var(--ink); }
+    .kpi-breakdown-item span { display:block; margin-top:5px; color:var(--muted); font-size:11px; line-height:1.25; }
+    .kpi-label-row { display:flex; align-items:center; gap:7px; }
+    .info-tooltip { position:relative; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; border:1px solid #b8c5d8; border-radius:50%; background:#f8fbff; color:#174ea6; font:700 12px/1 inherit; cursor:help; }
+    .info-tooltip::after { content:attr(data-tooltip); position:absolute; left:50%; top:calc(100% + 9px); z-index:1100; width:245px; padding:9px 11px; border-radius:10px; background:#172033; color:#fff; font-size:12px; font-weight:500; line-height:1.4; text-align:left; box-shadow:var(--shadow); opacity:0; visibility:hidden; transform:translate(-50%,-4px); transition:opacity .16s ease,transform .16s ease,visibility .16s ease; pointer-events:none; }
+    .info-tooltip:hover::after, .info-tooltip:focus::after, .info-tooltip:focus-visible::after, .info-tooltip.is-open::after { opacity:1; visibility:visible; transform:translate(-50%,0); }
+    .two-col { display:grid; grid-template-columns: 1.1fr .9fr; gap:18px; }
+    .panel-head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:18px 18px 0; }
+    .panel-head-inline { padding-bottom:0; }
+    .panel-title-group { min-width:0; }
+    .panel-title-group .section-title,
+    .panel-title-group h2 { margin-bottom:4px; }
+    .panel-toggle-title { cursor:pointer; border-radius:6px; transition:color .16s ease, background-color .16s ease; }
+    .panel-toggle-title:hover { color:var(--brand); }
+    .panel-toggle-title:focus-visible { outline:2px solid var(--brand-2); outline-offset:3px; }
+    .panel-body { padding: 12px 18px 18px; }
+    .collapse-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+      width:34px;
+      height:34px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:#fff;
+      color:#334155;
+      cursor:pointer;
+      font-size:18px;
+      line-height:1;
+      transition:background-color .18s ease, color .18s ease, transform .18s ease;
+    }
+    .collapse-btn:hover {
+      background:#eef4ff;
+      color:#174ea6;
+    }
+    .collapse-icon {
+      display:block;
+      transform:rotate(0deg);
+      transition:transform .18s ease;
+    }
+    .collapsible-panel.is-collapsed .collapse-icon {
+      transform:rotate(-90deg);
+    }
+    .collapsible-panel.is-collapsed > .panel-body,
+    .collapsible-panel.is-collapsed > .filters-body,
+    .collapsible-panel.is-collapsed .collapsible-content {
+      display:none;
+    }
+    .kpi .collapse-btn {
+      position:absolute;
+      top:12px;
+      right:12px;
+      width:28px;
+      height:28px;
+      font-size:15px;
+      box-shadow:none;
+    }
+    .kpi.collapsible-panel { padding-right:54px; }
+    .kpi.is-collapsed { min-height:64px; }
+    .kpi.is-collapsed .value,
+    .kpi.is-collapsed .sub,
+    .kpi.is-collapsed .kpi-breakdown { display:none; }
+    #map { height: 520px; border-radius: 16px; overflow: hidden; background:#dbeafe; }
+    .chart { min-height: 360px; }
+    table { width:100%; min-width:1450px; border-collapse:collapse; }
+    th, td { padding:10px 12px; border-bottom:1px solid #edf2f7; text-align:left; vertical-align:top; font-size:13px; }
+    thead th { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); position:sticky; top:0; background:white; }
+    tbody tr:hover { background:#f8fbff; }
+    .table-wrap { max-height: 460px; overflow:auto; border:1px solid #eef2f7; border-radius:14px; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; background:#eef2ff; color:#3730a3; }
+    .preselection-pill { display:inline-flex; max-width:230px; align-items:center; padding:6px 9px; border:1px solid transparent; border-radius:10px; font-size:11px; font-weight:700; line-height:1.35; }
+    .preselection-pill.anonymous { background:#eaf2ff; border-color:#bfd5ff; color:#174ea6; }
+    .preselection-pill.named { background:#eafaf1; border-color:#a9e7c4; color:#087443; }
+    .preselection-pill.without { background:#fff4df; border-color:#f5cd86; color:#9a5600; }
+    .preselection-pill.other { background:#f1f3f7; border-color:#d6dbe5; color:#475467; }
+    .money-value { font-weight:700; color:#175c43; }
+    .reserve-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .reserve-badge {
+      display:inline-block; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:700;
+      border:1px solid #dbe3ee; background:#f8fafc; color:#334155;
+    }
+    .reserve-badge.disabili { background:#ecfdf3; color:#027a48; border-color:#abefc6; }
+    .reserve-badge.art18 { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .reserve-badge.any { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+    .empty { padding:30px; text-align:center; color:var(--muted); }
+    .footer-note { font-size:12px; color:var(--muted); margin-top:8px; }
+    .map-popup {
+      min-width: 190px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .map-filter-btn {
+      border:none;
+      border-radius:10px;
+      padding:8px 10px;
+      background:var(--brand);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .header.sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px 18px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+      border-radius: 0 0 18px 18px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .header-left,
+    .header-right {
+      min-width: 0;
+    }
+
+    .header-left {
+      justify-self: start;
+    }
+
+    .header.sticky-header .title h1 {
+      font-size: 28px;
+      margin: 4px 0 0;
+      line-height: 1.05;
+    }
+
+    .header.sticky-header .badge {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .header-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: auto;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .header-center > * {
+      pointer-events: auto;
+    }
+
+    .live-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px 14px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .live-meta span {
+      white-space: nowrap;
+    }
+
+    .live-meta-compact {
+      font-size: 11px;
+      opacity: 0.85;
+      justify-content: flex-end;
+      text-align: right;
+    }
+
+    .live-meta-compact span {
+      white-space: nowrap;
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-self: end;
+      gap: 6px;
+    }
+
+    .header-right .toolbar {
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .header-right .btn {
+      padding: 9px 12px;
+      font-size: 14px;
+    }
+
+    .segmented-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #f8fafc;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+
+    .segment-btn {
+      border: none;
+      background: transparent;
+      color: #334155;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+      white-space: nowrap;
+    }
+
+    .segment-btn:hover {
+      background: #eef4ff;
+      color: #174ea6;
+    }
+
+    .segment-btn.active {
+      background: var(--brand);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .footer {
+      margin-top: 18px;
+      padding: 18px 6px 4px;
+      color: #3d4758;
+      font-size: 13px;
+      text-align: center;
+    }
+    .footer strong { display:block; margin-bottom:5px; color:#1d2b43; }
+    .footer small { display:block; line-height:1.45; }
+
+    /* Modalità compatta per incorporamento in iframe SharePoint (?embed=1). */
+    .is-embedded body { background:transparent; }
+    .is-embedded .app { width:100%; max-width:none; margin:0; padding:8px; }
+    .is-embedded .embed-only { display:inline-flex; }
+    .is-embedded .header.sticky-header { top:0; margin-bottom:10px; padding:8px 10px; border-radius:14px; }
+    .is-embedded .header.sticky-header .title h1 { font-size:22px; }
+    .is-embedded .header.sticky-header .badge { padding:5px 9px; font-size:11px; }
+    .is-embedded .header-right { gap:4px; }
+    .is-embedded .header-right .toolbar { gap:6px; }
+    .is-embedded .header-right .btn { padding:8px 10px; font-size:12px; }
+    .is-embedded .grid,
+    .is-embedded .content { gap:12px; }
+    .is-embedded .filters-grid { gap:10px; }
+    .is-embedded input,
+    .is-embedded select { padding:8px 10px; }
+    .is-embedded .kpis { grid-template-columns:repeat(4,minmax(150px,1fr)); gap:10px; }
+    .is-embedded .kpi { padding:14px; }
+    .is-embedded .kpi .value { font-size:28px; }
+    .is-embedded .kpi-breakdown-item { padding:7px 8px; }
+    .is-embedded .kpi-breakdown-item strong { font-size:20px; }
+    .is-embedded .two-col { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+    .is-embedded .panel-head { padding:14px 14px 0; }
+    .is-embedded .panel-body { padding:10px 14px 14px; }
+    .is-embedded #map { height:430px; }
+    .is-embedded .chart { min-height:300px; }
+    .is-embedded .table-wrap { max-height:420px; }
+    .is-embedded table { min-width:1320px; }
+    .is-embedded .footer { margin-top:12px; padding-top:12px; font-size:12px; }
+
+    @media (max-width: 1200px) {
+      .grid, .two-col { grid-template-columns: 1fr; }
+      .filters-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+
+      .header.sticky-header {
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 8px;
+        padding: 10px 12px;
+      }
+
+      .header-center {
+        position: static;
+        left: auto;
+        top: auto;
+        transform: none;
+        width: 100%;
+        justify-content: flex-start;
+        pointer-events: auto;
+      }
+
+      .live-meta {
+        justify-content: flex-start;
+        text-align: left;
+      }
+
+      .live-meta-compact {
+        justify-content: flex-start;
+        text-align: left;
+      }
+
+      .header-right {
+        align-items: flex-start;
+        justify-self: start;
+      }
+
+      .header-right .toolbar {
+        justify-content: flex-start;
+      }
+
+      .filters { position:static; top:auto; }
+      .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+
+    @media (max-width: 800px) {
+      .filters-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 700px) {
+      .app { padding:10px; }
+      .header.sticky-header { position:static; border-radius:16px; }
+      .header.sticky-header .title h1 { font-size:26px; }
+      .header-right, .header-right .toolbar { width:100%; }
+      .header-right .btn { flex:1; }
+      .segmented-control { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; }
+      .segment-btn { padding:9px 6px; }
+      .kpis { grid-template-columns:1fr; }
+      .kpi { padding:16px; }
+      .panel-head { padding:16px 14px 0; }
+      .panel-body { padding:12px 14px 14px; }
+      #map { height:390px; }
+      .chart { min-height:320px; }
+      .table-wrap { max-height:none; overflow:visible; border:0; }
+      table, tbody, tr, td { display:block; width:100%; min-width:0; }
+      thead { display:none; }
+      tbody { display:grid; gap:12px; }
+      tbody tr { padding:10px 12px; border:1px solid var(--line); border-radius:14px; background:#fff; box-shadow:0 5px 18px rgba(15,23,42,.05); }
+      tbody tr:hover { background:#fff; }
+      td { display:grid; grid-template-columns:minmax(105px,36%) minmax(0,1fr); gap:10px; padding:8px 0; border-bottom:1px solid #edf2f7; overflow-wrap:anywhere; }
+      td:last-child { border-bottom:0; }
+      td::before { content:attr(data-label); color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.035em; text-transform:uppercase; }
+      td.empty { display:block; }
+      td.empty::before { content:none; }
+      .footer { padding-inline:10px; }
+    }
+
+    @media (max-width: 520px) {
+      .filters-grid { grid-template-columns:1fr; }
+    }
+
+    @media (max-width: 1100px) {
+      .is-embedded .two-col { grid-template-columns:1fr; }
+      .is-embedded .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .is-embedded .app { padding:6px; }
+      .is-embedded .kpis { grid-template-columns:1fr; }
+      .is-embedded .header.sticky-header { grid-template-columns:1fr; }
+      .is-embedded .header-center { position:static; transform:none; justify-content:flex-start; width:100%; }
+      .is-embedded .header-right { width:100%; align-items:flex-start; }
+      .is-embedded .header-right .toolbar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+      .is-embedded .header-right .btn { min-width:0; white-space:normal; text-align:center; }
+      .is-embedded #fullscreenLink { grid-column:1 / -1; }
+      .is-embedded #map { height:360px; }
+      .is-embedded .chart { min-height:280px; }
+      .is-embedded table { min-width:0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header sticky-header panel">
+      <div class="header-left">
+        <div class="title">
+          <span class="badge">Dashboard live · Regione Lazio</span>
+          <h1>Preselezioni attive</h1>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="segmented-control" id="tipoPreselezioneToggle" aria-label="Filtro tipo preselezione">
+          <button type="button" class="segment-btn active" data-tipo-preselezione="Standard">Standard</button>
+          <button type="button" class="segment-btn" data-tipo-preselezione="Art.22">Art.22</button>
+          <button type="button" class="segment-btn" data-tipo-preselezione="all">Entrambi</button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="live-meta live-meta-compact">
+          <span>Aggiornamento: <span id="lastUpdate">—</span></span>
+          <span>Feed: <span id="feedStatus">in caricamento...</span></span>
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="refreshBtn">Aggiorna dati</button>
+          <button class="btn secondary" id="resetBtn">Reset filtri</button>
+          <a class="btn secondary embed-only" id="fullscreenLink" href="." target="_blank" rel="noopener noreferrer">Apri a schermo intero</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <aside class="panel filters collapsible-panel is-collapsed" data-panel-id="filters">
+        <div class="panel-head panel-head-inline">
+          <div class="panel-title-group">
+            <h2>Filtri</h2>
+            <span class="small">Ricerca e raffinamento dei risultati</span>
+          </div>
+          <button type="button" class="collapse-btn" aria-label="Espandi Filtri" aria-expanded="false">
+            <span class="collapse-icon" aria-hidden="true">⌄</span>
+          </button>
+        </div>
+        <div class="panel-body filters-body">
+          <div class="filters-grid">
+            <div>
+              <label for="searchInput">Ricerca libera</label>
+              <input id="searchInput" type="text" placeholder="Qualifica, mansioni, comune, azienda..." />
+            </div>
+            <div>
+              <label for="provinciaFilter">Provincia sede lavoro</label>
+              <select id="provinciaFilter"></select>
+            </div>
+            <div>
+              <label for="comuneFilter">Comune sede lavoro</label>
+              <select id="comuneFilter"></select>
+            </div>
+            <div>
+              <label for="cpiFilter">CPI</label>
+              <select id="cpiFilter"></select>
+            </div>
+            <div>
+              <label for="modoEvasioneFilter">Tipologia di preselezione</label>
+              <select id="modoEvasioneFilter"></select>
+            </div>
+
+            <div>
+              <label for="collocamentoMiratoFilter">Collocamento mirato L.68</label>
+              <select id="collocamentoMiratoFilter">
+                <option value="all">Indifferente</option>
+                <option value="none">Non riservate</option>
+                <option value="disabili">Disabili art. 1</option>
+                <option value="art18">Categorie protette art. 18</option>
+                <option value="any">Qualsiasi riserva</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="qualificaFilter">Qualifica</label>
+              <select id="qualificaFilter"></select>
+            </div>
+            <div>
+              <label for="contrattoFilter">Tipo contratto</label>
+              <select id="contrattoFilter"></select>
+            </div>
+            <div>
+              <label for="orarioFilter">Tipo orario</label>
+              <select id="orarioFilter"></select>
+            </div>
+            <div>
+              <label for="pubblicazioneFilter">Stato pubblicazione</label>
+              <select id="pubblicazioneFilter"></select>
+            </div>
+            <div>
+              <label for="scadenzaFilter">Scadenza entro</label>
+              <select id="scadenzaFilter">
+                <option value="all">Tutte</option>
+                <option value="7">Nei prossimi 7 giorni</option>
+                <option value="14">Nei prossimi 14 giorni</option>
+                <option value="30">Nei prossimi 30 giorni</option>
+              </select>
+            </div>
+          </div>
+          <div class="chips" id="summaryChips"></div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="kpis">
+          <div class="panel kpi collapsible-panel" data-panel-id="kpi-count">
+            <button type="button" class="collapse-btn" aria-label="Comprimi KPI preselezioni attive" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            <div class="label">Preselezioni attive</div><div class="value" id="kpiCount">0</div><div class="sub" id="kpiCountSub">righe filtrate</div>
+          </div>
+          <div class="panel kpi collapsible-panel" data-panel-id="kpi-workers">
+            <button type="button" class="collapse-btn" aria-label="Comprimi KPI lavoratori richiesti" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            <div class="label">Lavoratori richiesti</div><div class="value" id="kpiWorkers">0</div><div class="sub">somma dei posti richiesti</div>
+          </div>
+          <div class="panel kpi collapsible-panel" data-panel-id="kpi-reserved">
+            <button type="button" class="collapse-btn" aria-label="Comprimi KPI preselezioni riservate" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            <div class="kpi-label-row"><div class="label">Preselezioni riservate</div><button type="button" class="info-tooltip" data-tooltip="Disabili art.1 o Categorie protette art.18 L.68/99" aria-label="Informazioni sulle preselezioni riservate" aria-expanded="false">i</button></div><div class="value" id="kpiReserved">0</div><div class="sub">sul filtro corrente</div>
+          </div>
+          <div class="panel kpi collapsible-panel" data-panel-id="kpi-fulfillment">
+            <button type="button" class="collapse-btn" aria-label="Comprimi KPI tipologia di preselezione" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            <div class="label">Tipologia di preselezione</div>
+            <div class="kpi-breakdown">
+              <div class="kpi-breakdown-item"><strong id="kpiWithPreselection">0</strong><span>con preselezione</span></div>
+              <div class="kpi-breakdown-item"><strong id="kpiWithoutPreselection">0</strong><span>senza preselezione</span></div>
+            </div>
+          </div>
+          </section>
+
+        <section class="two-col">
+          <div class="panel collapsible-panel" data-panel-id="map">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h3 class="section-title">Mappa interattiva del Lazio</h3>
+                <span class="small">Comuni sede lavoro visualizzati sulla mappa del Lazio</span>
+              </div>
+              <button type="button" class="collapse-btn" aria-label="Comprimi pannello Mappa interattiva del Lazio" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            </div>
+            <div class="panel-body"><div id="map"></div></div>
+          </div>
+          <div class="panel collapsible-panel" data-panel-id="province-chart">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h3 class="section-title">Preselezioni per provincia</h3>
+                <span class="small">clicca una barra per filtrare</span>
+              </div>
+              <button type="button" class="collapse-btn" aria-label="Comprimi pannello Preselezioni per provincia" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            </div>
+            <div class="panel-body"><div id="provinceChart" class="chart"></div></div>
+          </div>
+        </section>
+
+        <section class="two-col">
+          <div class="panel collapsible-panel" data-panel-id="qualifica-chart">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h3 class="section-title">Top qualifiche</h3>
+                <span class="small">volumi per qualifica</span>
+              </div>
+              <button type="button" class="collapse-btn" aria-label="Comprimi pannello Top qualifiche" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            </div>
+            <div class="panel-body"><div id="qualificaChart" class="chart"></div></div>
+          </div>
+          <div class="panel collapsible-panel" data-panel-id="contract-chart">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <h3 class="section-title">Tipologia di contratto offerto</h3>
+                <span class="small">clicca una barra per filtrare</span>
+              </div>
+              <button type="button" class="collapse-btn" aria-label="Comprimi pannello Tipologia di contratto offerto" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+            </div>
+            <div class="panel-body"><div id="contractChart" class="chart"></div></div>
+          </div>
+        </section>
+
+        <section class="panel collapsible-panel" data-panel-id="table">
+          <div class="panel-head">
+            <div class="panel-title-group">
+              <h3 class="section-title">Elenco preselezioni</h3>
+              <span class="small" id="tableCount">0 risultati</span>
+            </div>
+            <button type="button" class="collapse-btn" aria-label="Comprimi pannello Elenco preselezioni" aria-expanded="true"><span class="collapse-icon" aria-hidden="true">⌄</span></button>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Qualifica</th>
+                    <th>Provincia</th>
+                    <th>Comune sede lavoro</th>
+                    <th>CPI</th>
+                    <th>Contratto</th>
+                    <th>Retribuzione</th>
+                    <th>Scadenza</th>
+                    <th>Posti</th>
+                    <th>Azienda</th>
+                    <th>Tipologia di preselezione</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <footer class="footer">
+      <strong>Copyright Regione Lazio - Direzione Istruzione, Formazione e Politiche per l'Occupazione</strong>
+      <small>I dati personali devono essere trattati esclusivamente per finalita' istituzionali e nel rispetto della normativa vigente in materia di protezione dei dati personali.</small>
+      <small>Versione strumento 1.2</small>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" integrity="sha384-cCVCZkAjYNxaYKbM8lsArLznDF/SvMFr1jcZrvOpSTCa0W40ZAdLzHCEulnUa5i7" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+  <script>
+    const LIVE_CSV_URL = "https://docs.google.com/spreadsheets/d/1v1g1baqevGDHcBhVTyCrNI04YXMEddfr9fn4dRH5T-I/export?format=csv";
+    const LAZIO_PROVINCES_GEOJSON = [
+      "assets/geojson/limits_IT_provinces.geojson",
+      "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_provinces.geojson"
+    ];
+    const ITALY_REGIONS_GEOJSON = [
+      "assets/geojson/limits_IT_regions.geojson",
+      "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson"
+    ];
+    const LAZIO_COMUNI_GEOJSON = [
+      "assets/geojson/limits_R_12_municipalities.geojson",
+      "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_R_12_municipalities.geojson"
+    ];
+    const LOCAL_ASSET_VERSION = "20260428-geojson";
+
+    const PROVINCE_CENTROIDS = {
+      "Roma": [41.8933, 12.4829],
+      "Frosinone": [41.6401, 13.3517],
+      "Latina": [41.4676, 12.9037],
+      "Rieti": [42.4048, 12.8567],
+      "Viterbo": [42.4173, 12.1047]
+    };
+    const LAZIO_PROVINCES = ["Roma", "Frosinone", "Latina", "Rieti", "Viterbo"];
+    const EXTRA_REGION_LABEL = "Extra-Regione";
+
+    const TIPO_PRESELEZIONE_STANDARD = "Standard";
+    const TIPO_PRESELEZIONE_ART22 = "Art.22";
+
+    const filters = {
+      search: "",
+      tipoPreselezione: TIPO_PRESELEZIONE_STANDARD,
+      provincia: "all",
+      comune: "all",
+      cpi: "all",
+      qualifica: "all",
+      contratto: "all",
+      modoEvasione: "all",
+      orario: "all",
+      pubblicazione: "all",
+      collocamentoMirato: "all",
+      scadenza: "all"
+    };
+
+    let rawRows = [];
+    let filteredRows = [];
+    let map, baseTileLayer, italyLayer, provinceLayer, municipalityLayer, markersLayer;
+    let mapErrorMessage = "";
+    let geoJsonSourceLabel = "";
+    let lazioGeoJson = null;
+    let italyRegionsGeoJson = null;
+    let lazioComuniGeoJson = null;
+    let comuneCoordsIndex = new Map();
+
+    function cleanValue(v) {
+      if (v === undefined || v === null) return null;
+      const s = String(v).replace(/\s+/g, ' ').trim();
+      if (!s || s === '-' || s === 'null' || s === 'undefined' || s === 'NaN') return null;
+      return s;
+    }
+
+    function parseExcelDate(value) {
+      if (!value) return null;
+      if (value instanceof Date && !isNaN(value)) return value.toISOString().slice(0,10);
+      if (typeof value === 'number' && window.XLSX) {
+        const d = XLSX.SSF.parse_date_code(value);
+        if (d) return new Date(Date.UTC(d.y, d.m - 1, d.d)).toISOString().slice(0,10);
+      }
+      const s = cleanValue(value);
+      if (!s) return null;
+      const gvizDate = s.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);
+      if (gvizDate) {
+        return new Date(Date.UTC(Number(gvizDate[1]), Number(gvizDate[2]), Number(gvizDate[3]))).toISOString().slice(0,10);
+      }
+      const italianDate = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (italianDate) {
+        return new Date(Date.UTC(Number(italianDate[3]), Number(italianDate[2]) - 1, Number(italianDate[1]))).toISOString().slice(0,10);
+      }
+      const d = new Date(s);
+      if (!isNaN(d)) return d.toISOString().slice(0,10);
+      return s;
+    }
+
+    function toNumber(value) {
+      if (value === null || value === undefined || value === "") return 0;
+      const n = Number(String(value).replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function normalizeProvince(v) {
+      const s = cleanValue(v);
+      if (!s) return null;
+      const lower = s.toLowerCase();
+      if (lower.includes("roma")) return "Roma";
+      if (lower.includes("latina")) return "Latina";
+      if (lower.includes("frosinone")) return "Frosinone";
+      if (lower.includes("rieti")) return "Rieti";
+      if (lower.includes("viterbo")) return "Viterbo";
+      return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    }
+
+    function normalizeComune(v) {
+      const s = cleanValue(v);
+      if (!s) return null;
+      return s.split(",")[0].trim().replace(/\s+/g, " ").replace(/(^\w|\s\w)/g, t => t.toUpperCase());
+    }
+
+    function normalizeTipoPreselezione(v) {
+      const s = cleanValue(v);
+      if (!s) return TIPO_PRESELEZIONE_STANDARD;
+      const compact = s.toLowerCase().replace(/\s+/g, '');
+      if (compact === 'standard') return TIPO_PRESELEZIONE_STANDARD;
+      if (compact === 'art.22' || compact === 'art22') return TIPO_PRESELEZIONE_ART22;
+      return s;
+    }
+
+    function sanitizeHttpsUrl(value) {
+      const s = cleanValue(value);
+      if (!s) return null;
+      try {
+        const url = new URL(s, window.location.href);
+        return url.protocol === "https:" ? url.href : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    // NORMALIZZAZIONE AGGIUNTA: CategoriaRiserva
+    function normalizeCategoriaRiserva(v) {
+      const s = cleanValue(v);
+      if (!s) {
+        return {
+          isReserved: false,
+          hasDisabiliArt1: false,
+          hasArt18: false
+        };
+      }
+
+      const normalized = s
+        .toLowerCase()
+        .replace(/\./g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const compact = normalized.replace(/\s+/g, '');
+      const isNoValue = compact === 'no';
+
+      if (isNoValue) {
+        return {
+          isReserved: false,
+          hasDisabiliArt1: false,
+          hasArt18: false
+        };
+      }
+
+      const hasDisabiliArt1 =
+        normalized.includes('disabili') ||
+        /\bart\s*1\b/.test(normalized);
+
+      const hasArt18 =
+        normalized.includes('categorie protette') ||
+        /\bart\s*18\b/.test(normalized);
+
+      return {
+        isReserved: hasDisabiliArt1 || hasArt18,
+        hasDisabiliArt1,
+        hasArt18
+      };
+    }
+
+    function normalizeColumnKey(key) {
+      const raw = cleanValue(key) || "";
+      const withoutPrefix = raw.includes("]") ? raw.split("]").pop().trim() : raw.trim();
+      return withoutPrefix.replace(/\s+/g, "").toLowerCase();
+    }
+
+    function getRowValue(row, fieldName) {
+      if (!row) return null;
+      if (Object.prototype.hasOwnProperty.call(row, fieldName)) return row[fieldName];
+      const wanted = normalizeColumnKey(fieldName);
+      const sourceKey = Object.keys(row).find(key => normalizeColumnKey(key) === wanted);
+      return sourceKey ? row[sourceKey] : null;
+    }
+
+    function normalizeRows(rows) {
+      return rows
+        .filter(r => cleanValue(getRowValue(r, "ID_Richiesta")))
+        .map(r => {
+          const inserimento = parseExcelDate(getRowValue(r, "DataInserimento"));
+          const scadenza = parseExcelDate(getRowValue(r, "DataScadenza"));
+          return {
+            ...r,
+            ID_Richiesta: cleanValue(getRowValue(r, "ID_Richiesta")),
+            CPI: cleanValue(getRowValue(r, "CPI")),
+            TipoPreselezione: normalizeTipoPreselezione(getRowValue(r, "TipoPreselezione")),
+            DataInserimento: inserimento,
+            DataScadenza: scadenza,
+            StatoRichiestaPreselezione: cleanValue(getRowValue(r, "StatoRichiestaPreselezione")),
+            StatoPubblicazione: cleanValue(getRowValue(r, "StatoPubblicazione")),
+            NumeroLavoratoriRichiesti: toNumber(getRowValue(r, "NumeroLavoratoriRichiesti")),
+            Qualifica: cleanValue(getRowValue(r, "Qualifica")) || "Non specificata",
+            Mansioni: cleanValue(getRowValue(r, "Mansioni")),
+            TipoContratto: cleanValue(getRowValue(r, "TipoContratto")) || "Non specificato",
+            ModoEvasioneRichiesta: cleanValue(getRowValue(r, "ModoEvasioneRichiesta")) || "Non specificato",
+            TipoOrario: cleanValue(getRowValue(r, "TipoOrario")) || "Non specificato",
+            Retribuzione: cleanValue(getRowValue(r, "Retribuzione")),
+            Retribuzione_Note: cleanValue(getRowValue(r, "Retribuzione_Note")),
+            ProvinciaSedeLavoro: normalizeProvince(getRowValue(r, "ProvinciaSedeLavoro")),
+            ComuneSedeLavoro: normalizeComune(getRowValue(r, "ComuneSedeLavoro")),
+            RaggiungibileConMezziPubblici: cleanValue(getRowValue(r, "RaggiungibileConMezziPubblici")),
+            TitoloStudioRichiesto: cleanValue(getRowValue(r, "TitoloStudioRichiesto")),
+            EsperienzeLavorativeRichieste: cleanValue(getRowValue(r, "EsperienzeLavorativeRichieste")),
+            Lingue: cleanValue(getRowValue(r, "Lingue")),
+            Patente: cleanValue(getRowValue(r, "Patente")),
+            Azienda: cleanValue(getRowValue(r, "Azienda")),
+            SettoreEconomicoAzienda: cleanValue(getRowValue(r, "SettoreEconomicoAzienda")),
+            LinkPubblicazioneOfferta: sanitizeHttpsUrl(getRowValue(r, "LinkPubblicazioneOfferta")),
+            ...normalizeCategoriaRiserva(getRowValue(r, "CategoriaRiserva"))
+          };
+        });
+    }
+
+    function versionedAssetUrl(url) {
+      if (!url.startsWith("assets/")) return url;
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}v=${encodeURIComponent(LOCAL_ASSET_VERSION)}`;
+    }
+
+    async function fetchJson(url) {
+      const requestUrl = versionedAssetUrl(url);
+      const res = await fetch(requestUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status} durante il caricamento di ${url}`);
+      return res.json();
+    }
+
+    async function fetchJsonFromSources(urls) {
+      const sources = Array.isArray(urls) ? urls : [urls];
+      const errors = [];
+      for (const url of sources) {
+        try {
+          const data = await fetchJson(url);
+          return { data, url };
+        } catch (err) {
+          errors.push(err.message || String(err));
+        }
+      }
+      throw new Error(errors.join(" | "));
+    }
+
+    function getGeometryCenter(geometry) {
+      if (!geometry || !geometry.coordinates) return null;
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+
+      function walk(coords) {
+        if (!Array.isArray(coords)) return;
+        if (typeof coords[0] === "number" && typeof coords[1] === "number") {
+          const lng = coords[0];
+          const lat = coords[1];
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          }
+          return;
+        }
+        coords.forEach(walk);
+      }
+
+      walk(geometry.coordinates);
+      if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return null;
+      return [(minLat + maxLat) / 2, (minLng + maxLng) / 2];
+    }
+
+    function buildComuneCoordsIndex(features) {
+      const index = new Map();
+      features.forEach(feature => {
+        const comuneName = normalizeComune(feature.properties?.name);
+        const center = getGeometryCenter(feature.geometry);
+        if (comuneName && center) index.set(comuneName, center);
+      });
+      comuneCoordsIndex = index;
+    }
+
+    async function loadGeoJson() {
+      if (!lazioGeoJson) {
+        const result = await fetchJsonFromSources(LAZIO_PROVINCES_GEOJSON);
+        const geo = result.data;
+        geoJsonSourceLabel = result.url.startsWith("assets/geojson/")
+          ? "locali"
+          : "fallback Openpolis";
+        lazioGeoJson = {
+          type: "FeatureCollection",
+          features: geo.features.filter(f => (f.properties?.reg_name || "").toLowerCase() === "lazio")
+        };
+      }
+      if (!italyRegionsGeoJson) {
+        const result = await fetchJsonFromSources(ITALY_REGIONS_GEOJSON);
+        italyRegionsGeoJson = result.data;
+      }
+      if (!lazioComuniGeoJson) {
+        const result = await fetchJsonFromSources(LAZIO_COMUNI_GEOJSON);
+        const geo = result.data;
+        lazioComuniGeoJson = geo;
+        buildComuneCoordsIndex(lazioComuniGeoJson.features);
+      }
+      return { lazioGeoJson, italyRegionsGeoJson, lazioComuniGeoJson };
+    }
+
+    function setStatus(text, good = true) {
+      const el = document.getElementById("feedStatus");
+      el.textContent = text;
+      el.style.color = good ? "var(--ok)" : "var(--warn)";
+    }
+
+    async function loadData() {
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleString('it-IT');
+      try {
+        const res = await fetch(LIVE_CSV_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const csvText = await res.text();
+        const wb = XLSX.read(csvText, { type: "string" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const liveRows = XLSX.utils.sheet_to_json(ws, { defval: null });
+        rawRows = normalizeRows(liveRows);
+        if (!rawRows.length) throw new Error("Dataset vuoto o non leggibile");
+        setStatus("connesso alla banca dati");
+      } catch (err) {
+        console.warn("Connessione alla banca dati non disponibile", err);
+        rawRows = [];
+        setStatus(`mancata connessione alla banca dati (${err.message || err})`, false);
+      }
+      populateFilterOptions();
+      applyFilters();
+      renderAll();
+      updateTipoPreselezioneUI();
+      if (!map && !mapErrorMessage) {
+        try {
+          await initMap();
+          renderMap();
+        } catch (mapError) {
+          console.warn("Mappa non disponibile", mapError);
+          mapErrorMessage = mapError.message || String(mapError);
+          renderMapError();
+        }
+      }
+    }
+
+    function getUnique(field) {
+      return [...new Set(rawRows.map(r => r[field]).filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b), 'it'));
+    }
+
+    function fillSelect(id, values, placeholder) {
+      const sel = document.getElementById(id);
+      const current = sel.value || "all";
+      sel.innerHTML = `<option value="all">${placeholder}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+      sel.value = values.includes(current) ? current : "all";
+    }
+
+    function populateFilterOptions() {
+      const hasExtraRegion = rawRows.some(r => r.ProvinciaSedeLavoro && !LAZIO_PROVINCES.includes(r.ProvinciaSedeLavoro));
+      fillSelect("provinciaFilter", hasExtraRegion ? [...LAZIO_PROVINCES, EXTRA_REGION_LABEL] : LAZIO_PROVINCES, "Tutte le province");
+      fillSelect("comuneFilter", getUnique("ComuneSedeLavoro"), "Tutti i comuni");
+      fillSelect("cpiFilter", getUnique("CPI"), "Tutti i CPI");
+      fillSelect("qualificaFilter", getUnique("Qualifica"), "Tutte le qualifiche");
+      fillSelect("contrattoFilter", getUnique("TipoContratto"), "Tutti i contratti");
+      fillSelect("modoEvasioneFilter", getUnique("ModoEvasioneRichiesta"), "Tutte le tipologie");
+      fillSelect("orarioFilter", getUnique("TipoOrario"), "Tutti gli orari");
+      fillSelect("pubblicazioneFilter", getUnique("StatoPubblicazione"), "Tutti gli stati");
+    }
+
+    function applyFilters() {
+      const now = new Date();
+      filteredRows = rawRows.filter(r => {
+        const haystack = [r.ID_Richiesta, r.Qualifica, r.Mansioni, r.ComuneSedeLavoro, r.ProvinciaSedeLavoro, r.Azienda, r.CPI, r.ModoEvasioneRichiesta, r.Retribuzione, r.Retribuzione_Note].filter(Boolean).join(" ").toLowerCase();
+        if (filters.search && !haystack.includes(filters.search.toLowerCase())) return false;
+        if (filters.tipoPreselezione !== "all" && r.TipoPreselezione !== filters.tipoPreselezione) return false;
+        if (filters.provincia === EXTRA_REGION_LABEL && LAZIO_PROVINCES.includes(r.ProvinciaSedeLavoro)) return false;
+        if (filters.provincia !== "all" && filters.provincia !== EXTRA_REGION_LABEL && r.ProvinciaSedeLavoro !== filters.provincia) return false;
+        if (filters.comune !== "all" && r.ComuneSedeLavoro !== filters.comune) return false;
+        if (filters.cpi !== "all" && r.CPI !== filters.cpi) return false;
+        if (filters.qualifica !== "all" && r.Qualifica !== filters.qualifica) return false;
+        if (filters.contratto !== "all" && r.TipoContratto !== filters.contratto) return false;
+        if (filters.modoEvasione !== "all" && r.ModoEvasioneRichiesta !== filters.modoEvasione) return false;
+        if (filters.orario !== "all" && r.TipoOrario !== filters.orario) return false;
+        if (filters.pubblicazione !== "all" && r.StatoPubblicazione !== filters.pubblicazione) return false;
+
+        // APPLYFILTERS: nuovo filtro Collocamento mirato L.68
+        if (filters.collocamentoMirato === "none" && r.isReserved) return false;
+        if (filters.collocamentoMirato === "disabili" && !r.hasDisabiliArt1) return false;
+        if (filters.collocamentoMirato === "art18" && !r.hasArt18) return false;
+        if (filters.collocamentoMirato === "any" && !r.isReserved) return false;
+
+        if (filters.scadenza !== "all") {
+          if (!r.DataScadenza) return false;
+          const d = new Date(r.DataScadenza);
+          const diff = Math.ceil((d - now) / 86400000);
+          if (diff < 0 || diff > Number(filters.scadenza)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderAll() {
+      renderKpis();
+      renderSummaryChips();
+      renderProvinceChart();
+      renderQualificaChart();
+      renderContractChart();
+      renderTable();
+      renderMap();
+    }
+
+    function aggregate(rows, key, limit = 999) {
+      const m = new Map();
+      rows.forEach(r => {
+        const k = r[key] || "Non specificato";
+        m.set(k, (m.get(k) || 0) + 1);
+      });
+      return [...m.entries()].sort((a,b) => b[1] - a[1]).slice(0, limit);
+    }
+
+    function renderKpis() {
+      const workers = filteredRows.reduce((sum, r) => sum + (r.NumeroLavoratoriRichiesti || 0), 0);
+      const reserved = filteredRows.filter(r => r.isReserved).length;
+      const withPreselection = filteredRows.filter(r => isWithPreselection(r.ModoEvasioneRichiesta)).length;
+      const withoutPreselection = filteredRows.length - withPreselection;
+      document.getElementById("kpiCount").textContent = filteredRows.length.toLocaleString('it-IT');
+      document.getElementById("kpiWorkers").textContent = workers.toLocaleString('it-IT');
+      document.getElementById("kpiReserved").textContent = reserved.toLocaleString('it-IT');
+      document.getElementById("kpiWithPreselection").textContent = withPreselection.toLocaleString('it-IT');
+      document.getElementById("kpiWithoutPreselection").textContent = withoutPreselection.toLocaleString('it-IT');
+      document.getElementById("kpiCountSub").textContent = `${rawRows.length} righe totali nel dataset`;
+    }
+
+    function isWithPreselection(value) {
+      const normalized = String(value || "").toLocaleLowerCase('it-IT');
+      if (normalized.includes("senza preselez")) return false;
+      return normalized.includes("con preselez") || normalized.includes("preselezione");
+    }
+
+    function renderSummaryChips() {
+      const chips = [];
+      if (filters.tipoPreselezione === "all") {
+        chips.push("Tipo preselezione: Entrambi");
+      } else {
+        chips.push(`Tipo preselezione: ${filters.tipoPreselezione}`);
+      }
+      if (filters.provincia !== "all") chips.push(`Provincia: ${filters.provincia}`);
+      if (filters.comune !== "all") chips.push(`Comune: ${filters.comune}`);
+      if (filters.cpi !== "all") chips.push(`CPI: ${filters.cpi}`);
+      if (filters.qualifica !== "all") chips.push(`Qualifica: ${filters.qualifica}`);
+      if (filters.contratto !== "all") chips.push(`Contratto: ${filters.contratto}`);
+      if (filters.modoEvasione !== "all") chips.push(`Tipologia di preselezione: ${filters.modoEvasione}`);
+      if (filters.orario !== "all") chips.push(`Orario: ${filters.orario}`);
+      if (filters.pubblicazione !== "all") chips.push(`Pubblicazione: ${filters.pubblicazione}`);
+      if (filters.collocamentoMirato === "none") chips.push("Collocamento mirato L.68: Non riservate");
+      if (filters.collocamentoMirato === "disabili") chips.push("Collocamento mirato L.68: Disabili art. 1");
+      if (filters.collocamentoMirato === "art18") chips.push("Collocamento mirato L.68: Categorie protette art. 18");
+      if (filters.collocamentoMirato === "any") chips.push("Collocamento mirato L.68: Qualsiasi riserva");
+      if (filters.scadenza !== "all") chips.push(`Scadenza entro: ${filters.scadenza} giorni`);
+      if (filters.search) chips.push(`Ricerca: \"${filters.search}\"`);
+      document.getElementById("summaryChips").innerHTML = chips.length ? chips.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join("") : `<span class="chip">Nessun filtro attivo</span>`;
+    }
+
+    function basePlotLayout(title = "") {
+      return {
+        title: { text: title, x: 0, xanchor: "left", font: { size: 15 } },
+        margin: { t: 36, r: 12, b: 44, l: 48 },
+        paper_bgcolor: "white",
+        plot_bgcolor: "white",
+        xaxis: { automargin: true, gridcolor: "#eef2f7" },
+        yaxis: { automargin: true, gridcolor: "#eef2f7" },
+        showlegend: false
+      };
+    }
+
+    function renderProvinceChart() {
+      if (!window.Plotly) return;
+      const counts = new Map([...LAZIO_PROVINCES, EXTRA_REGION_LABEL].map(provincia => [provincia, 0]));
+      filteredRows.forEach(r => {
+        const bucket = LAZIO_PROVINCES.includes(r.ProvinciaSedeLavoro) ? r.ProvinciaSedeLavoro : EXTRA_REGION_LABEL;
+        counts.set(bucket, counts.get(bucket) + 1);
+      });
+      const data = [...counts.entries()];
+      Plotly.react("provinceChart", [{
+        type: "bar",
+        x: data.map(d => d[0]),
+        y: data.map(d => d[1]),
+        marker: { color: data.map(d => d[0] === EXTRA_REGION_LABEL ? "#d97706" : "#2779b5") },
+        hovertemplate: "%{x}<br>%{y} preselezioni<extra></extra>"
+      }], basePlotLayout("Distribuzione per provincia"), {responsive:true});
+      const el = document.getElementById("provinceChart");
+      el.on('plotly_click', (ev) => {
+        const provincia = ev.points?.[0]?.x;
+        if (provincia) {
+          document.getElementById("provinciaFilter").value = provincia;
+          filters.provincia = provincia;
+          applyFilters();
+          renderAll();
+        }
+      });
+    }
+
+    function renderQualificaChart() {
+      if (!window.Plotly) return;
+      const data = aggregate(filteredRows, "Qualifica", 10).reverse();
+      Plotly.react("qualificaChart", [{
+        type: "bar",
+        orientation: "h",
+        x: data.map(d => d[1]),
+        y: data.map(d => d[0]),
+        hovertemplate: "%{y}<br>%{x} preselezioni<extra></extra>"
+      }], {
+        ...basePlotLayout("Top 10 qualifiche"),
+        margin: { t: 36, r: 12, b: 44, l: 150 },
+        xaxis: { automargin: true, gridcolor: "#eef2f7", dtick: 1, tickformat: ",d" }
+      }, {responsive:true});
+      const el = document.getElementById("qualificaChart");
+      el.on('plotly_click', (ev) => {
+        const qualifica = ev.points?.[0]?.y;
+        if (qualifica) {
+          document.getElementById("qualificaFilter").value = qualifica;
+          filters.qualifica = qualifica;
+          applyFilters();
+          renderAll();
+        }
+      });
+    }
+
+    function renderContractChart() {
+      if (!window.Plotly) return;
+      const data = aggregate(filteredRows, "TipoContratto", 12).reverse();
+      Plotly.react("contractChart", [{
+        type: "bar",
+        orientation: "h",
+        x: data.map(d => d[1]),
+        y: data.map(d => d[0]),
+        marker: { color: "#0e9f6e" },
+        hovertemplate: "%{y}<br>%{x} preselezioni<extra></extra>"
+      }], {
+        ...basePlotLayout("Distribuzione per contratto"),
+        margin: { t: 36, r: 12, b: 44, l: 165 },
+        xaxis: { automargin: true, gridcolor: "#eef2f7", tickformat: ",d" }
+      }, {responsive:true});
+      const el = document.getElementById("contractChart");
+      el.on('plotly_click', (ev) => {
+        const contract = ev.points?.[0]?.y;
+        if (contract) {
+          document.getElementById("contrattoFilter").value = contract;
+          filters.contratto = contract;
+          applyFilters();
+          renderAll();
+        }
+      });
+    }
+
+    async function initMap() {
+      await loadGeoJson();
+      if (!window.L) throw new Error("Leaflet non caricato dal CDN");
+      map = L.map('map', {
+        zoomControl: true,
+        attributionControl: true,
+        scrollWheelZoom: "center",
+        wheelDebounceTime: 45,
+        zoomSnap: 0.1,
+        zoomDelta: 0.25
+      }).setView([41.95, 12.6], 8);
+
+      baseTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        subdomains: "abcd",
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      }).addTo(map);
+
+      italyLayer = L.geoJSON(italyRegionsGeoJson, {
+        style: (feature) => {
+          const isLazio = (feature.properties?.reg_name || "").toLowerCase() === "lazio";
+          return {
+            weight: isLazio ? 2.5 : 1,
+            color: isLazio ? "#0f62fe" : "#94a3b8",
+            fillColor: isLazio ? "#dbeafe" : "#ffffff",
+            fillOpacity: isLazio ? 0.08 : 0,
+            opacity: isLazio ? 0.9 : 0.28,
+            dashArray: isLazio ? null : "3 4"
+          };
+        }
+      }).addTo(map);
+
+      municipalityLayer = L.geoJSON(lazioComuniGeoJson, {
+        interactive: false,
+        style: () => ({
+          weight: 0.55,
+          color: "#2563eb",
+          opacity: 0.24,
+          fillOpacity: 0
+        })
+      }).addTo(map);
+
+      provinceLayer = L.geoJSON(lazioGeoJson, {
+        style: () => ({
+          weight: 1.8,
+          color: "#1d4ed8",
+          fillColor: "#93c5fd",
+          fillOpacity: 0.32,
+          opacity: 0.95
+        }),
+        onEachFeature: (feature, layer) => {
+          const provinceName = feature.properties?.prov_name;
+          if (provinceName) {
+            layer.bindTooltip(provinceName, {
+              sticky: true,
+              direction: "center",
+              className: "province-tooltip"
+            });
+          }
+          layer.on('click', () => {
+            if (provinceName) {
+              document.getElementById("provinciaFilter").value = provinceName;
+              filters.provincia = provinceName;
+              applyFilters();
+              renderAll();
+            }
+          });
+        }
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+
+      const bounds = provinceLayer.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, {
+          animate: false,
+          paddingTopLeft: [12, 12],
+          paddingBottomRight: [12, 12]
+        });
+      }
+    }
+
+    function renderMapError() {
+      const el = document.getElementById("map");
+      if (!el) return;
+      el.innerHTML = `<div class="empty">Mappa non disponibile: ${escapeHtml(mapErrorMessage || "errore di caricamento")}</div>`;
+    }
+
+    function colorScale(value, max) {
+      if (!max) return "#e0f2fe";
+      const ratio = value / max;
+      if (ratio > 0.8) return "#2563eb";
+      if (ratio > 0.6) return "#3b82f6";
+      if (ratio > 0.4) return "#60a5fa";
+      if (ratio > 0.2) return "#93c5fd";
+      return "#dbeafe";
+    }
+
+    function renderMap() {
+      if (mapErrorMessage) {
+        renderMapError();
+        return;
+      }
+      if (!map || !provinceLayer) return;
+      const counts = new Map();
+      filteredRows.forEach(r => {
+        const p = r.ProvinciaSedeLavoro;
+        if (p) counts.set(p, (counts.get(p) || 0) + 1);
+      });
+      const max = Math.max(0, ...counts.values());
+
+      provinceLayer.eachLayer(layer => {
+        const name = layer.feature.properties?.prov_name;
+        const count = counts.get(name) || 0;
+        layer.setStyle({
+          fillColor: colorScale(count, max),
+          fillOpacity: count ? 0.52 : 0.16,
+          color: count ? "#1d4ed8" : "#60a5fa",
+          weight: count ? 2 : 1.2
+        });
+      });
+
+      markersLayer.clearLayers();
+      const comuneAgg = new Map();
+      filteredRows.forEach(r => {
+        const comune = r.ComuneSedeLavoro;
+        const provincia = r.ProvinciaSedeLavoro;
+        if (!comune || !provincia) return;
+        const key = `${provincia}__${comune}`;
+        const existing = comuneAgg.get(key) || { comune, provincia, count:0, workers:0 };
+        existing.count += 1;
+        existing.workers += r.NumeroLavoratoriRichiesti || 0;
+        comuneAgg.set(key, existing);
+      });
+
+      [...comuneAgg.values()].sort((a,b) => b.count - a.count).slice(0, 80).forEach(item => {
+        const coords = comuneCoordsIndex.get(item.comune) || PROVINCE_CENTROIDS[item.provincia];
+        if (!coords) return;
+        const marker = L.circleMarker(coords, {
+          radius: 4 + Math.min(item.count * 1.1, 14),
+          weight: 1.8,
+          color: "#ffffff",
+          fillColor: "#0f62fe",
+          fillOpacity: 0.78,
+          opacity: 0.95
+        });
+        marker.bindTooltip(`<strong>${escapeHtml(item.comune)}</strong><br>Preselezioni: ${item.count}`, {
+          sticky: true,
+          direction: "top",
+          offset: [0, -8]
+        });
+        marker.bindPopup(`
+          <div class="map-popup">
+            <div><strong>${escapeHtml(item.comune)}</strong></div>
+            <div>Provincia: ${escapeHtml(item.provincia)}</div>
+            <div>Preselezioni: ${item.count}</div>
+            <div>Posti richiesti: ${item.workers}</div>
+            <div style="margin-top:8px;">
+              <button type="button" class="map-filter-btn" data-comune="${escapeHtml(item.comune)}">Filtra questo comune</button>
+            </div>
+          </div>
+        `);
+        marker.on('popupopen', (ev) => {
+          const btn = ev.popup && ev.popup.getElement() ? ev.popup.getElement().querySelector('.map-filter-btn') : null;
+          if (!btn) return;
+          btn.addEventListener('click', () => {
+            document.getElementById("comuneFilter").value = item.comune;
+            filters.comune = item.comune;
+            applyFilters();
+            renderAll();
+          }, { once: true });
+        });
+        marker.addTo(markersLayer);
+      });
+    }
+
+    function renderTable() {
+      const body = document.getElementById("tableBody");
+      const rows = filteredRows.slice().sort((a,b) => (a.DataScadenza || "").localeCompare(b.DataScadenza || "")).slice(0, 200);
+      document.getElementById("tableCount").textContent = `${filteredRows.length} risultati`;
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="11" class="empty">Nessun risultato con i filtri correnti.</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map(r => {
+        const reserveBadges = [];
+        if (r.hasDisabiliArt1) reserveBadges.push('<span class="reserve-badge disabili">Disabili art. 1</span>');
+        if (r.hasArt18) reserveBadges.push('<span class="reserve-badge art18">Categorie protette art. 18</span>');
+        if (r.isReserved && !reserveBadges.length) reserveBadges.push('<span class="reserve-badge any">Riserva</span>');
+
+        return `
+        <tr>
+          <td data-label="ID">
+            ${r.LinkPubblicazioneOfferta
+              ? `<a href="${escapeHtml(r.LinkPubblicazioneOfferta)}" target="_blank" rel="noopener noreferrer"><strong>${escapeHtml(r.ID_Richiesta || "—")}</strong></a>`
+              : `<strong>${escapeHtml(r.ID_Richiesta || "—")}</strong>`
+            }
+          </td>
+          <td data-label="Qualifica">
+            <div><strong>${escapeHtml(r.Qualifica || "—")}</strong></div>
+            <div class="small">${escapeHtml(r.Mansioni || "Mansioni non specificate")}</div>
+            ${reserveBadges.length ? `<div class="reserve-badges">${reserveBadges.join("")}</div>` : ""}
+          </td>
+          <td data-label="Provincia">${escapeHtml(r.ProvinciaSedeLavoro || "—")}</td>
+          <td data-label="Comune sede lavoro">${escapeHtml(r.ComuneSedeLavoro || "—")}</td>
+          <td data-label="CPI">${escapeHtml(r.CPI || "—")}</td>
+          <td data-label="Contratto">
+            <div>${escapeHtml(r.TipoContratto || "—")}</div>
+            <div class="small">${escapeHtml(r.TipoOrario || "—")}</div>
+          </td>
+          <td data-label="Retribuzione">
+            <div class="money-value">${escapeHtml(r.Retribuzione || "Non specificata")}</div>
+            ${r.Retribuzione_Note ? `<div class="small">${escapeHtml(r.Retribuzione_Note)}</div>` : ""}
+          </td>
+          <td data-label="Scadenza">${formatDate(r.DataScadenza)}</td>
+          <td data-label="Posti"><span class="pill">${(r.NumeroLavoratoriRichiesti || 0).toLocaleString('it-IT')}</span></td>
+          <td data-label="Azienda">${escapeHtml(r.Azienda || "n.d.")}</td>
+          <td data-label="Tipologia di preselezione"><span class="preselection-pill ${preselectionModeClass(r.ModoEvasioneRichiesta)}">${escapeHtml(r.ModoEvasioneRichiesta || "Non specificato")}</span></td>
+        </tr>
+      `;
+      }).join("");
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      return isNaN(d) ? escapeHtml(iso) : d.toLocaleDateString('it-IT');
+    }
+
+    function preselectionModeClass(value) {
+      const normalized = String(value || "").toLocaleLowerCase('it-IT');
+      if (normalized.includes("anonima") && normalized.includes("con preselez")) return "anonymous";
+      if (normalized.includes("palese") && normalized.includes("senza preselez")) return "without";
+      if (normalized.includes("palese") && normalized.includes("con preselez")) return "named";
+      return "other";
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function updateTipoPreselezioneUI() {
+      document.querySelectorAll('#tipoPreselezioneToggle .segment-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tipoPreselezione === filters.tipoPreselezione);
+      });
+    }
+
+    function refreshVisibleVisuals(panel) {
+      const resizeChart = (id) => {
+        const el = document.getElementById(id);
+        if (el && window.Plotly) Plotly.Plots.resize(el);
+      };
+      if (!panel || panel.querySelector("#map")) {
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 180);
+      }
+      ["provinceChart", "qualificaChart", "contractChart"].forEach(id => {
+        if (!panel || panel.querySelector(`#${id}`)) {
+          setTimeout(() => resizeChart(id), 180);
+        }
+      });
+    }
+
+    function setPanelCollapsed(panel, collapsed) {
+      const btn = panel.querySelector(".collapse-btn");
+      const titleToggle = panel.querySelector(".panel-toggle-title");
+      panel.classList.toggle("is-collapsed", collapsed);
+      if (btn) {
+        btn.setAttribute("aria-expanded", String(!collapsed));
+        const title = panel.querySelector(".section-title, h2, .label")?.textContent?.trim() || "pannello";
+        btn.setAttribute("aria-label", `${collapsed ? "Espandi" : "Comprimi"} ${title}`);
+      }
+      if (titleToggle) titleToggle.setAttribute("aria-expanded", String(!collapsed));
+      if (!collapsed) refreshVisibleVisuals(panel);
+    }
+
+    function bindCollapsiblePanels() {
+      document.querySelectorAll(".collapsible-panel").forEach(panel => {
+        const btn = panel.querySelector(".collapse-btn");
+        if (!btn) return;
+        const togglePanel = () => setPanelCollapsed(panel, !panel.classList.contains("is-collapsed"));
+        btn.addEventListener("click", togglePanel);
+
+        const titleToggle = panel.classList.contains("kpi")
+          ? panel.querySelector(".label")
+          : panel.querySelector(".panel-head .section-title, .panel-head h2");
+        if (!titleToggle) return;
+        titleToggle.classList.add("panel-toggle-title");
+        titleToggle.setAttribute("role", "button");
+        titleToggle.setAttribute("tabindex", "0");
+        titleToggle.setAttribute("aria-expanded", String(!panel.classList.contains("is-collapsed")));
+        titleToggle.addEventListener("click", togglePanel);
+        titleToggle.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            togglePanel();
+          }
+        });
+      });
+    }
+
+    function bindEvents() {
+      bindCollapsiblePanels();
+      const reserveInfoTooltip = document.querySelector(".info-tooltip");
+      if (reserveInfoTooltip) {
+        reserveInfoTooltip.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const isOpen = reserveInfoTooltip.classList.toggle("is-open");
+          reserveInfoTooltip.setAttribute("aria-expanded", String(isOpen));
+        });
+        reserveInfoTooltip.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            reserveInfoTooltip.classList.remove("is-open");
+            reserveInfoTooltip.setAttribute("aria-expanded", "false");
+          }
+        });
+        document.addEventListener("click", () => {
+          reserveInfoTooltip.classList.remove("is-open");
+          reserveInfoTooltip.setAttribute("aria-expanded", "false");
+        });
+      }
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        filters.search = e.target.value.trim();
+        applyFilters(); renderAll();
+      });
+      ["provincia","comune","cpi","qualifica","contratto","modoEvasione","orario","pubblicazione","collocamentoMirato","scadenza"].forEach(key => {
+        const id = key + "Filter";
+        document.getElementById(id).addEventListener("change", (e) => {
+          filters[key] = e.target.value;
+          applyFilters(); renderAll();
+        });
+      });
+      document.querySelectorAll('#tipoPreselezioneToggle .segment-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          filters.tipoPreselezione = btn.dataset.tipoPreselezione;
+          updateTipoPreselezioneUI();
+          applyFilters();
+          renderAll();
+        });
+      });
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        filters.search = "";
+        filters.tipoPreselezione = TIPO_PRESELEZIONE_STANDARD;
+        filters.provincia = filters.comune = filters.cpi = filters.qualifica = filters.contratto = filters.modoEvasione = filters.orario = filters.pubblicazione = filters.scadenza = "all";
+        filters.collocamentoMirato = "all";
+        document.getElementById("searchInput").value = "";
+        ["provincia","comune","cpi","qualifica","contratto","modoEvasione","orario","pubblicazione","collocamentoMirato","scadenza"].forEach(key => {
+          document.getElementById(key + "Filter").value = "all";
+        });
+        updateTipoPreselezioneUI();
+        applyFilters(); renderAll();
+      });
+      document.getElementById("refreshBtn").addEventListener("click", loadData);
+    }
+
+    function configureEmbeddedMode() {
+      const fullscreenLink = document.getElementById("fullscreenLink");
+      if (!fullscreenLink || !document.documentElement.classList.contains("is-embedded")) return;
+      const fullscreenUrl = new URL(window.location.href);
+      fullscreenUrl.searchParams.delete("embed");
+      fullscreenLink.href = fullscreenUrl.href;
+    }
+
+    configureEmbeddedMode();
+    bindEvents();
+    loadData();
+  </script>
+</body>
+</html>
